@@ -1,21 +1,21 @@
 package main
 
 func New[In, Out any](calculation func(In, func(Out) In) Out) (resumer func(In) Out) {
-	cin := make(chan In)
-	cout := make(chan Out)
+	cresume := make(chan In)
+	cyield := make(chan Out)
 
 	resume := func(in In) (out Out) {
-		cin <- in
-		return <-cout
+		cresume <- in
+		return <-cyield
 	}
 
 	yield := func(out Out) (in In) {
-		cout <- out
-		return <-cin
+		cyield <- out
+		return <-cresume
 	}
 
 	go func() {
-		cout <- calculation(<-cin, yield)
+		cyield <- calculation(<-cresume, yield)
 	}()
 
 	return resume
