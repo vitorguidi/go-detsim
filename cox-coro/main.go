@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 func New[In, Out any](calculation func(In, func(Out) In) Out) (resumer func(In) Out) {
 	cresume := make(chan In)
 	cyield := make(chan Out)
@@ -21,19 +23,35 @@ func New[In, Out any](calculation func(In, func(Out) In) Out) (resumer func(In) 
 	return resume
 }
 
-// We can understand the first parameter as the initial value
-func mult_by_two(val int, yield func(int) int) int {
-	for val >= 0 {
-		val = yield(2 * val)
-	}
-	println("leaving coro")
-	return val
+func counter() func(bool) int {
+	return New(func(more bool, yield func(int) bool) int {
+		for i := 2; more; i++ {
+			fmt.Printf("passing %d from 1\n", i)
+			more = yield(i)
+		}
+		return 0
+	})
+}
+
+func filter(p int, next func(bool) int) (filtered func(bool) int) {
+	return New(func(more bool, yield func(int) bool) int {
+		for more {
+			n := next(true)
+			if n%p != 0 {
+				fmt.Printf("passing %d from %d\n", n, p)
+				more = yield(n)
+			}
+		}
+		return next(false)
+	})
 }
 
 func main() {
-	resume := New(mult_by_two)
-	for i := 0; i < 3; i++ {
-		println(resume(i))
+	next := counter()
+	for i := 0; i < 10; i++ {
+		p := next(true)
+		fmt.Println(p)
+		next = filter(p, next)
 	}
-	resume(-1)
+	next(false)
 }
